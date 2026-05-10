@@ -72,11 +72,9 @@ export default function Auth({ onLogin }) {
         
         {/* Image Side */}
         <div className="flex-1 relative overflow-hidden min-h-[250px] lg:min-h-[600px]">
-          <div className="absolute top-5 left-6 lg:top-8 lg:left-10 text-2xl font-bold text-white z-10">Travels</div>
+          <div className="absolute top-5 left-6 lg:top-8 lg:left-10 text-2xl font-bold text-white z-10">Traveloop</div>
           <img 
-            src={isLogin 
-              ? "https://image.qwenlm.ai/public_source/2172740d-97eb-4f44-9581-eff996332031/157c7301e-fa34-4d27-98ae-f54bfcc5b189.png" 
-              : "https://image.qwenlm.ai/public_source/2172740d-97eb-4f44-9581-eff996332031/1ce9f2d8b-6379-40b8-b5b9-dd6cb1cb48f0.png"} 
+            src="https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=800&q=80" 
             alt="Background" 
             className="w-full h-full object-cover absolute inset-0"
           />
@@ -91,7 +89,7 @@ export default function Auth({ onLogin }) {
             </p>
           </div>
           <div className="absolute bottom-5 left-6 right-6 lg:bottom-5 lg:left-10 lg:right-10 flex flex-col lg:flex-row justify-between lg:items-center text-xs text-white/80 gap-2 lg:gap-0">
-            <span>Vlatio 2024. All rights reserved.</span>
+            <span>Traveloop 2024. All rights reserved.</span>
             <div className="flex gap-4">
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { auth } from "./firebase";
+import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import Auth from "./Auth";
 import Dashboard from "./pages/Dashboard";
 import MyTickets from "./pages/MyTickets";
@@ -18,10 +19,33 @@ export default function TravelooApp() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loadingAuth, setLoadingAuth] = useState(true);
+    const [userData, setUserData] = useState(null);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setIsLoggedIn(!!user);
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setIsLoggedIn(true);
+                try {
+                    const docRef = doc(db, "users", user.uid);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        setUserData(docSnap.data());
+                    } else {
+                        const nameParts = user.displayName ? user.displayName.split(' ') : [];
+                        setUserData({
+                            firstName: nameParts[0] || user.email.split('@')[0],
+                            lastName: nameParts.slice(1).join(' ') || "",
+                            email: user.email
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error fetching user data:", e);
+                    setUserData({ firstName: user.email.split('@')[0], lastName: "", email: user.email });
+                }
+            } else {
+                setIsLoggedIn(false);
+                setUserData(null);
+            }
             setLoadingAuth(false);
         });
         return () => unsubscribe();
@@ -64,6 +88,11 @@ export default function TravelooApp() {
         }
     };
 
+    const displayFirstName = userData?.firstName || "Traveler";
+    const displayFullName = `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() || userData?.email || "Traveler";
+    const initials = (userData?.firstName?.[0] || "") + (userData?.lastName?.[0] || "");
+    const displayInitials = initials.toUpperCase() || (userData?.email?.[0] || "T").toUpperCase();
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-cyan-50 flex items-center justify-center p-2 sm:p-4">
             {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
@@ -99,7 +128,7 @@ export default function TravelooApp() {
                     <div className="flex items-center justify-between p-4 lg:hidden border-b border-gray-100 flex-shrink-0">
                         <button onClick={() => setSidebarOpen(true)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600">☰</button>
                         <span className="font-bold text-gray-800">Traveloo</span>
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">KT</div>
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">{displayInitials}</div>
                     </div>
 
                     <div className="flex flex-1 overflow-hidden">
@@ -108,7 +137,7 @@ export default function TravelooApp() {
                             {page === "Dashboard" && (
                                 <div className="px-4 sm:px-6 pt-4 sm:pt-6 flex items-center justify-between flex-wrap gap-3 flex-shrink-0">
                                     <div>
-                                        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Hello, Kashish 👋</h1>
+                                        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Hello, {displayFirstName} 👋</h1>
                                         <p className="text-sm text-gray-400 mt-0.5">Welcome back. Are you ready to explore the world?</p>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -127,8 +156,8 @@ export default function TravelooApp() {
                         <aside className="hidden xl:flex w-64 flex-col flex-shrink-0 p-5 border-l border-gray-100 gap-5 overflow-y-auto">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md">KT</div>
-                                    <div><p className="text-sm font-bold text-gray-800">Kashish Tripathi</p><p className="text-xs text-gray-400">Traveller Enthusiast</p></div>
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md">{displayInitials}</div>
+                                    <div><p className="text-sm font-bold text-gray-800">{displayFullName}</p><p className="text-xs text-gray-400">Traveller Enthusiast</p></div>
                                 </div>
                                 <button className="text-gray-400 text-xs">▾</button>
                             </div>
