@@ -4,11 +4,16 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import Auth from "./Auth";
 import Dashboard from "./pages/Dashboard";
+import CreateTrip from "./pages/CreateTrip";
+import MyTrips from "./pages/MyTrips";
 import MyTickets from "./pages/MyTickets";
 import Favourites from "./pages/Favourites";
 import NotificationsPage from "./pages/NotificationsPage";
 import Transactions from "./pages/Transactions";
 import Itinerary from "./pages/Itinerary";
+import Budget from "./pages/Budget";
+import Checklist from "./pages/Checklist";
+import Notes from "./pages/Notes";
 import Settings from "./pages/Settings";
 import { notifList, schedule, CALENDAR_DAYS, OCTOBER, highlighted } from "./data/mockData";
 
@@ -20,6 +25,40 @@ export default function TravelooApp() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loadingAuth, setLoadingAuth] = useState(true);
     const [userData, setUserData] = useState(null);
+    const [weather, setWeather] = useState(null);
+    // Global State for Persistence
+    const [itineraryDays, setItineraryDays] = useState([
+        {
+            id: 1,
+            day: 1,
+            city: "Dubai",
+            activities: [
+                { id: 1, time: "09:00", name: "Burj Khalifa Observation", type: "Attraction", duration: "2h", icon: "🏙️", lat: 25.1972, lon: 55.2744 },
+                { id: 2, time: "12:00", name: "Dubai Mall & Fountain", type: "Shopping", duration: "3h", icon: "🛍️", lat: 25.1989, lon: 55.2796 },
+            ]
+        }
+    ]);
+    const [transactions, setTransactions] = useState([
+        { id: 1, title: "Emirates Flight TK-204", cat: "Flights", date: "Today", amount: 1200 },
+        { id: 2, title: "Burj Al Arab Booking", cat: "Accommodation", date: "Yesterday", amount: 1500 },
+        { id: 3, title: "Desert Safari Tour", cat: "Activities", date: "Oct 12", amount: 150 },
+        { id: 4, title: "At.mosphere Restaurant", cat: "Food & Dining", date: "Oct 12", amount: 320 },
+        { id: 5, title: "Airport Transfer", cat: "Transport", date: "Oct 10", amount: 80 }
+    ]);
+
+    useEffect(() => {
+        async function fetchWeather() {
+            try {
+                // Berlin coordinates as default (latitude=52.52, longitude=13.41)
+                const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true&daily=weathercode,temperature_2m_max&timezone=auto");
+                const data = await res.json();
+                setWeather(data);
+            } catch (e) {
+                console.error("Failed to fetch weather", e);
+            }
+        }
+        fetchWeather();
+    }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -71,19 +110,22 @@ export default function TravelooApp() {
     const unread = notifList.filter(n => n.unread).length;
 
     const nav = [
-        { icon: "🏠", label: "Dashboard" }, { icon: "🎫", label: "My Tickets" }, { icon: "⭐", label: "Favourites" },
-        { icon: "🔔", label: "Notifications" }, { icon: "💳", label: "Transactions" }, { icon: "🗺️", label: "Itinerary" }, { icon: "⚙️", label: "Settings" },
+        { icon: "🏠", label: "Dashboard" }, { icon: "✈️", label: "My Trips" }, { icon: "🗺️", label: "Itinerary" }, 
+        { icon: "💰", label: "Budget" }, { icon: "🧳", label: "Packing" }, { icon: "📝", label: "Journal" },
+        { icon: "⭐", label: "Favourites" }, { icon: "⚙️", label: "Settings" },
     ];
 
     const renderPage = () => {
         switch (page) {
-            case "Dashboard": return <Dashboard searchQuery={searchQuery} savedIds={savedIds} toggleSave={toggleSave} />;
-            case "My Tickets": return <MyTickets />;
+            case "Dashboard": return <Dashboard setPage={setPage} searchQuery={searchQuery} savedIds={savedIds} toggleSave={toggleSave} transactions={transactions} itineraryDays={itineraryDays} />;
+            case "My Trips": return <MyTrips setPage={setPage} />;
+            case "Create Trip": return <CreateTrip setPage={setPage} />;
+            case "Itinerary": return <Itinerary days={itineraryDays} setDays={setItineraryDays} />;
+            case "Budget": return <Budget transactions={transactions} setTransactions={setTransactions} />;
+            case "Packing": return <Checklist />;
+            case "Journal": return <Notes />;
             case "Favourites": return <Favourites savedIds={savedIds} toggleSave={toggleSave} />;
-            case "Notifications": return <NotificationsPage />;
-            case "Transactions": return <Transactions />;
-            case "Itinerary": return <Itinerary />;
-            case "Settings": return <Settings />;
+            case "Settings": return <Settings userData={userData} />;
             default: return <Dashboard searchQuery={searchQuery} savedIds={savedIds} toggleSave={toggleSave} />;
         }
     };
@@ -92,6 +134,27 @@ export default function TravelooApp() {
     const displayFullName = `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() || userData?.email || "Traveler";
     const initials = (userData?.firstName?.[0] || "") + (userData?.lastName?.[0] || "");
     const displayInitials = initials.toUpperCase() || (userData?.email?.[0] || "T").toUpperCase();
+
+    const getWeatherIcon = (code) => {
+        if (code === 0) return "☀️";
+        if (code >= 1 && code <= 3) return "🌤";
+        if (code >= 45 && code <= 48) return "🌫";
+        if (code >= 51 && code <= 67) return "🌧";
+        if (code >= 71 && code <= 77) return "❄️";
+        if (code >= 95) return "⛈";
+        return "🌤";
+    };
+
+    const currentTemp = weather?.current_weather?.temperature || 28;
+    const currentCode = weather?.current_weather?.weathercode || 1;
+    const dailyForecast = weather?.daily ? [0, 1, 2].map(i => {
+        const date = new Date(weather.daily.time[i]);
+        return [
+            date.toLocaleDateString('en-US', { weekday: 'short' }),
+            getWeatherIcon(weather.daily.weathercode[i]),
+            Math.round(weather.daily.temperature_2m_max[i])
+        ];
+    }) : [["Mon", "☀️", 32], ["Tue", "🌤", 29], ["Wed", "🌧", 25]];
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-cyan-50 flex items-center justify-center p-2 sm:p-4">
@@ -198,12 +261,12 @@ export default function TravelooApp() {
                                 </div>
                             </div>
                             <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-4 text-white">
-                                <div className="flex items-center justify-between mb-2"><p className="text-xs font-medium opacity-80">Current Weather</p><span className="text-2xl">🌤</span></div>
-                                <p className="text-2xl font-bold">28°C</p>
-                                <p className="text-xs opacity-70 mt-1">Dubai, UAE</p>
+                                <div className="flex items-center justify-between mb-2"><p className="text-xs font-medium opacity-80">Live Weather</p><span className="text-2xl">{getWeatherIcon(currentCode)}</span></div>
+                                <p className="text-2xl font-bold">{Math.round(currentTemp)}°C</p>
+                                <p className="text-xs opacity-70 mt-1">Berlin, Germany</p>
                                 <div className="flex gap-3 mt-3">
-                                    {[["Mon", "☀️", 32], ["Tue", "🌤", 29], ["Wed", "🌧", 25]].map(([d, icon, temp]) => (
-                                        <div key={d} className="flex flex-col items-center gap-1"><span className="text-[10px] opacity-60">{d}</span><span className="text-sm">{icon}</span><span className="text-[10px] font-semibold">{temp}°</span></div>
+                                    {dailyForecast.map(([d, icon, temp], idx) => (
+                                        <div key={idx} className="flex flex-col items-center gap-1"><span className="text-[10px] opacity-60">{d}</span><span className="text-sm">{icon}</span><span className="text-[10px] font-semibold">{temp}°</span></div>
                                     ))}
                                 </div>
                             </div>
